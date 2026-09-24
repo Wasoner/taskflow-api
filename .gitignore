@@ -1,0 +1,15 @@
+# Entorno virtual
+.venv/
+venv/
+
+# Credenciales - NUNCA versionar (ISO 27001)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editores
+.vscode/
+.idea/
