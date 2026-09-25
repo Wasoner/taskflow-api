@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     app_name: str = "TaskFlow API"
     app_version: str = "1.0.0"
     database_url: str
+    mongo_url: str
 
 
 settings = Settings()

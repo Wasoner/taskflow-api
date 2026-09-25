@@ -1,0 +1,178 @@
+/* TaskFlow - CSS3: variables, flexbox/grid y responsive */
+
+:root {
+  --clr-bg: #f4f6fb;
+  --clr-card: #ffffff;
+  --clr-text: #1e2433;
+  --clr-muted: #6b7280;
+  --clr-primary: #2563eb;
+  --clr-primary-dark: #1d4ed8;
+  --clr-danger: #dc2626;
+  --clr-border: #e5e7eb;
+  --shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  line-height: 1.5;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: #fff;
+  padding: 1.5rem 2rem;
+}
+
+.app-header h1 { margin: 0; font-size: 1.6rem; }
+.app-header p { margin: 0.25rem 0 0; opacity: 0.85; font-size: 0.95rem; }
+
+.layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.25rem;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--clr-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+
+.card-wide { grid-column: 1 / -1; }
+
+.card h2 { margin-top: 0; font-size: 1.15rem; }
+
+.subtitle { font-size: 0.85rem; color: var(--clr-muted); font-weight: normal; }
+
+/* ---- Formularios ---- */
+.form {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.form label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--clr-muted);
+}
+
+.form input,
+.form select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--clr-border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.form input:focus,
+.form select:focus {
+  outline: 2px solid var(--clr-primary);
+  border-color: transparent;
+}
+
+.btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: #eef2ff;
+  color: var(--clr-primary-dark);
+  transition: filter 0.15s ease;
+}
+
+.btn:hover { filter: brightness(0.95); }
+
+.btn-primary { background: var(--clr-primary); color: #fff; }
+.btn-primary:hover { background: var(--clr-primary-dark); filter: none; }
+
+.btn-danger { background: #fee2e2; color: var(--clr-danger); }
+
+.btn-small { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+
+/* ---- Listas ---- */
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--clr-border);
+  border-radius: 10px;
+}
+
+.list-item.selected { border-color: var(--clr-primary); background: #eff6ff; }
+
+.list-item > div:first-child { display: grid; gap: 0.15rem; min-width: 0; }
+.list-item strong { overflow: hidden; text-overflow: ellipsis; }
+
+.item-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+
+.muted { color: var(--clr-muted); font-size: 0.85rem; }
+.empty { color: var(--clr-muted); font-style: italic; text-align: center; padding: 1rem; }
+
+/* ---- Insignias de estado y prioridad ---- */
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-pending { background: #fef3c7; color: #92400e; }
+.badge-in_progress { background: #dbeafe; color: #1e40af; }
+.badge-done { background: #d1fae5; color: #065f46; }
+
+.badge-low { background: #f3f4f6; color: #374151; }
+.badge-medium { background: #ede9fe; color: #5b21b6; }
+.badge-high { background: #fee2e2; color: #991b1b; }
+
+.meta { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+
+/* ---- Logs ---- */
+.list-logs li {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--clr-primary);
+  background: #f8fafc;
+  border-radius: 0 8px 8px 0;
+}
+
+/* ---- Toast (mensajes) ---- */
+.toast {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  background: #064e3b;
+  color: #fff;
+  padding: 0.8rem 1.2rem;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+  max-width: 340px;
+}
+
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.error { background: var(--clr-danger); }

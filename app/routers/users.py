@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User
+from app.mongo import log_activity
 from app.schemas import UserCreate, UserOut
 from app.security import hash_password
 
@@ -30,6 +31,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    log_activity("user.created", "user", user.id, {"email": user.email})
     return user
 
 

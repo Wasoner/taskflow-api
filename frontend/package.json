@@ -1,0 +1,13 @@
+{
+  "name": "taskflow-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend HTML5/CSS3/TypeScript para TaskFlow API",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

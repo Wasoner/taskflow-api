@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Project, Task, User
+from app.mongo import log_activity
 from app.schemas import TaskCreate, TaskOut, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -27,6 +28,10 @@ def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
     db.add(task)
     db.commit()
     db.refresh(task)
+    log_activity(
+        "task.created", "task", task.id,
+        {"title": task.title, "project_id": task.project_id, "status": task.status},
+    )
     return task
 
 
@@ -84,6 +89,7 @@ def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(get_db)
 
     db.commit()
     db.refresh(task)
+    log_activity("task.updated", "task", task.id, {"changed_fields": sorted(data.keys())})
     return task
 
 
@@ -95,3 +101,4 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
     db.delete(task)
     db.commit()
+    log_activity("task.deleted", "task", task_id, {"title": task.title})

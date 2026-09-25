@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Project, User
+from app.mongo import log_activity
 from app.schemas import ProjectCreate, ProjectOut, ProjectUpdate
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -21,6 +22,7 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     db.add(project)
     db.commit()
     db.refresh(project)
+    log_activity("project.created", "project", project.id, {"name": project.name, "owner_id": project.owner_id})
     return project
 
 
@@ -65,4 +67,5 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 
     db.delete(project)
     db.commit()
+    log_activity("project.deleted", "project", project_id, {"name": project.name})
     # 204 = eliminado correctamente, sin cuerpo de respuesta

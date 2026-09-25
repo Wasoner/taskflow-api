@@ -1,6 +1,6 @@
 # TaskFlow API
 
-API REST de gestión de proyectos y tareas, construida como proyecto de práctica para demostrar competencias en desarrollo backend, bases de datos y **documentación técnica**.
+API REST de gestión de proyectos y tareas con frontend TypeScript, construida como proyecto de práctica para demostrar competencias en desarrollo backend, bases de datos relacionales y NoSQL, y **documentación técnica**.
 
 ## 📋 Contenido
 
@@ -19,16 +19,19 @@ API REST de gestión de proyectos y tareas, construida como proyecto de práctic
 
 | Capa | Tecnología | Versión | Propósito |
 |---|---|---|---|
-| Lenguaje | Python | 3.12 | Lenguaje del backend |
+| Lenguaje backend | Python | 3.12 | Lenguaje del backend |
 | Framework | FastAPI | 0.141 | Framework web + OpenAPI automático |
 | Validación | Pydantic | v2 | Validación de entrada/salida |
 | ORM | SQLAlchemy | 2.1 | Mapeo objeto-relacional |
-| BD relacional | PostgreSQL | 16 | Almacenamiento persistente (SQL) |
-| Driver | psycopg2 | — | Comunicación Python ↔ PostgreSQL |
+| BD relacional | PostgreSQL | 16 | Almacenamiento transaccional (SQL) |
+| Driver SQL | psycopg2 | — | Comunicación Python ↔ PostgreSQL |
+| BD NoSQL | MongoDB | 7 | Logs de auditoría (documentos flexibles) |
+| Driver NoSQL | pymongo | — | Comunicación Python ↔ MongoDB |
+| Frontend | HTML5 + CSS3 + TypeScript | — | Interfaz de usuario |
 | Servidor | Uvicorn | — | Servidor ASGI |
 | Pruebas | pytest + httpx | — | Tests de integración |
-| Contenedores | Docker | — | Aislamiento de la BD |
-| Cliente BD | DBeaver | — | Consulta y gestión de datos |
+| Contenedores | Docker | — | Aislamiento de las bases de datos |
+| Cliente BD | DBeaver / mongosh | — | Consulta y gestión de datos |
 
 ---
 
@@ -38,34 +41,38 @@ Patrón **por capas** (separation of concerns): cada capa tiene una única respo
 
 ```mermaid
 flowchart TB
-    Client["Cliente<br/>(Swagger UI / Navegador / DBeaver)"]
+    Client["Frontend HTML5/CSS3/TypeScript<br/>(también: Swagger UI o DBeaver)"]
     Router["Routers (app/routers/)<br/>📌 Definen rutas HTTP y códigos de estado"]
     Schema["Schemas Pydantic (app/schemas.py)<br/>✅ Validan los datos de entrada/salida"]
     Model["Models SQLAlchemy (app/models.py)<br/>🗄 Clases Python ↔ tablas SQL"]
     DB["database.py<br/>🔌 Sesiones y conexión"]
-    PG[("PostgreSQL 16<br/>(contenedor Docker)")]
+    PG[("PostgreSQL 16<br/>users, projects, tasks")]
+    Mongo[("MongoDB 7<br/>activity_logs (auditoría)")]
 
     Client -->|"JSON + HTTP"| Router
     Router --> Schema
     Schema --> Model
     Model --> DB
     DB --> PG
+    Router -->|"log_activity()"| Mongo
     PG -->|"Respuesta"| Client
+    Mongo -->|"GET /activity-logs"| Client
 ```
 
 **Flujo de una petición** (`POST /tasks`):
 
-1. El cliente envía JSON → el **router** recibe la petición.
+1. El frontend envía JSON → el **router** recibe la petición.
 2. **Pydantic** valida: ¿campos correctos? Si no → `422` con detalle del error.
 3. El **modelo ORM** traduce la operación a SQL (`INSERT INTO tasks ...`).
 4. **SQLAlchemy** ejecuta en PostgreSQL y devuelve el objeto.
-5. El router responde `201` con el JSON (sin datos sensibles).
+5. Se registra un evento de auditoría en **MongoDB** (`task.created`) — sin bloquear la respuesta si Mongo fallara.
+6. El router responde `201` con el JSON (sin datos sensibles).
 
 ---
 
 ## 🗄 Modelo de datos (Diagrama ER)
 
-Base de datos `proyecto_api` — 3 tablas con relaciones 1:N y restricciones integridad.
+Base de datos `proyecto_api` (PostgreSQL) — 3 tablas con relaciones 1:N y restricciones de integridad.
 
 ```mermaid
 erDiagram
@@ -111,6 +118,7 @@ erDiagram
 | `CHECK` en `status`/`priority` | La BD rechaza valores inválidos aunque alguien borre la API (defensa en profundidad) |
 | Índices en `owner_id`, `project_id`, `assigned_to` | Aceleran las consultas filtradas (rendimiento) |
 | `password_hash` en lugar de `password` | Imposible recuperar la contraseña: solo se almacena su hash bcrypt |
+| Logs en MongoDB (NoSQL) | Los eventos de auditoría son documentos con campos variables: un esquema rígido de tabla no encaja |
 
 Script SQL completo: [`database/schema.sql`](database/schema.sql)
 
@@ -118,23 +126,24 @@ Script SQL completo: [`database/schema.sql`](database/schema.sql)
 
 ## 🚀 Instalación y puesta en marcha
 
-**Requisitos**: Python 3.12+, Docker Desktop, DBeaver (opcional pero recomendado).
+**Requisitos**: Python 3.12+, Node.js 20+, Docker Desktop, DBeaver (opcional pero recomendado).
 
-### 1. Base de datos (Docker)
+### 1. Bases de datos (Docker)
 
 ```bash
-docker run --name proyectoapi-postgres \
-  -e POSTGRES_USER=appuser \
-  -e POSTGRES_PASSWORD=DevPass2026 \
-  -e POSTGRES_DB=proyecto_api \
-  -p 5432:5432 \
-  -v pgdata:/var/lib/postgresql/data \
-  -d postgres:16
+docker run --name proyectoapi-postgres `
+  -e POSTGRES_USER=appuser -e POSTGRES_PASSWORD=DevPass2026 `
+  -e POSTGRES_DB=proyecto_api -p 5432:5432 `
+  -v pgdata:/var/lib/postgresql/data -d postgres:16
+
+docker run --name proyectoapi-mongo `
+  -e MONGO_INITDB_ROOT_USERNAME=mongoadmin -e MONGO_INITDB_ROOT_PASSWORD=DevPass2026 `
+  -p 27017:27017 -v mongodata:/data/db -d mongo:7
 ```
 
-> Los datos persisten en el volumen `pgdata`: puedes borrar el contenedor y recrearlo sin perder nada.
+> Los datos persisten en los volúmenes `pgdata` y `mongodata`: puedes borrar los contenedores y recrearlos sin perder nada.
 
-### 2. Esquema y datos de prueba
+### 2. Esquema y datos de prueba (SQL)
 
 Ejecutar [`database/schema.sql`](database/schema.sql) en DBeaver (conexión → `proyecto_api` → New SQL Editor → Execute).
 
@@ -152,18 +161,30 @@ Crear un archivo `.env` en la raíz (está en `.gitignore`: **nunca se sube a Gi
 
 ```env
 DATABASE_URL=postgresql+psycopg2://appuser:DevPass2026@localhost:5432/proyecto_api
+MONGO_URL=mongodb://mongoadmin:DevPass2026@localhost:27017/?authSource=admin
 ```
 
-### 5. Arrancar el servidor
+### 5. Frontend (compilar TypeScript)
+
+```bash
+cd frontend
+npm install
+npm run build       # compila src/main.ts → dist/main.js
+cd ..
+```
+
+### 6. Arrancar el servidor
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
+- Aplicación (frontend): <http://127.0.0.1:8000/>
 - Swagger UI: <http://127.0.0.1:8000/docs>
 - ReDoc: <http://127.0.0.1:8000/redoc>
+- Health check: <http://127.0.0.1:8000/health>
 
-### 6. Base de datos de pruebas (solo para tests)
+### 7. Base de datos de pruebas (solo para tests)
 
 ```bash
 docker exec proyectoapi-postgres psql -U appuser -d postgres -c "CREATE DATABASE proyecto_api_test;"
@@ -174,6 +195,12 @@ docker exec proyectoapi-postgres psql -U appuser -d postgres -c "CREATE DATABASE
 ## 📡 Endpoints (Guía de la API)
 
 Base URL: `http://127.0.0.1:8000`
+
+### Sistema
+
+| Método | Ruta | Descripción | Respuestas |
+|---|---|---|---|
+| `GET` | `/health` | Health check (lo usan los monitores) | `200` |
 
 ### Usuarios
 
@@ -208,6 +235,12 @@ POST /users
 | `PATCH` | `/tasks/{id}` | Actualización parcial | `200`, `404` |
 | `DELETE` | `/tasks/{id}` | Eliminar | `204`, `404` |
 
+### Auditoría (MongoDB)
+
+| Método | Ruta | Descripción | Respuestas |
+|---|---|---|---|
+| `GET` | `/activity-logs?action=task.created&limit=50` | Eventos de auditoría (más recientes primero) | `200` |
+
 ### Códigos de estado utilizados
 
 | Código | Significado | Cuándo |
@@ -227,12 +260,13 @@ POST /users
 pytest -v
 ```
 
-**14 tests de integración** que verifican:
+**18 tests de integración** que verifican:
 
 - ✅ Flujo completo de cada endpoint (CRUD)
-- ✅ Códigos de estado correctos (`201`, `404`, `409`, `422`, `204`)
+- ✅ Códigos de estado correctos (`201`, `204`, `404`, `409`, `422`)
 - ✅ **Seguridad**: la contraseña nunca aparece en respuestas HTTP
 - ✅ Integridad referencial: borrar un proyecto elimina sus tareas (cascada)
+- ✅ Auditoría: los eventos aparecen en `/activity-logs` (MongoDB)
 - ✅ Los tests usan una BD separada (`proyecto_api_test`): jamás tocan datos de desarrollo
 
 ---
@@ -246,7 +280,9 @@ pytest -v
 | Mínima exposición | `password_hash` nunca sale en respuestas HTTP |
 | Validación de entrada | Pydantic rechaza datos malformados (`422`) antes de tocar la BD |
 | Integridad | Restricciones `CHECK`, `UNIQUE` y FK también en la BD (defensa en profundidad) |
-| Dependencias | Versiones fijadas en `requirements.txt` (control de vulnerabilidades) |
+| Auditoría | Eventos en MongoDB: quién hizo qué y cuándo |
+| XSS en el frontend | Uso de `textContent` en lugar de `innerHTML` con datos del usuario |
+| Dependencias | Versiones fijadas en `requirements.txt` y `package-lock.json` |
 
 ---
 
@@ -255,24 +291,33 @@ pytest -v
 ```
 proyectoAPI/
 ├── app/
-│   ├── main.py          # Punto de entrada: crea la app FastAPI
+│   ├── main.py          # Punto de entrada: app FastAPI + frontend estático
 │   ├── config.py        # Lectura de .env (configuración)
 │   ├── database.py      # Conexión y sesiones (pool)
 │   ├── models.py        # Modelos ORM (tablas)
 │   ├── schemas.py       # Schemas Pydantic (validación)
 │   ├── security.py      # Hash y verificación de contraseñas
+│   ├── mongo.py          # Conexión MongoDB + log_activity()
 │   └── routers/
-│       ├── users.py     # Endpoints de usuarios
-│       ├── projects.py  # Endpoints de proyectos
-│       └── tasks.py     # Endpoints de tareas
+│       ├── users.py      # Endpoints de usuarios
+│       ├── projects.py   # Endpoints de proyectos
+│       ├── tasks.py      # Endpoints de tareas
+│       └── activity.py   # Endpoints de auditoría (MongoDB)
+├── frontend/
+│   ├── index.html       # Estructura semántica HTML5
+│   ├── styles.css       # Estilos CSS3 (variables, grid, responsive)
+│   ├── src/main.ts      # Lógica TypeScript (tipos + fetch + DOM)
+│   ├── tsconfig.json    # Configuración del compilador de TS
+│   └── dist/main.js     # JavaScript compilado (no versionado)
 ├── tests/
 │   ├── conftest.py      # Fixtures: cliente de test + BD de prueba
 │   ├── test_users.py
-│   └── test_projects_tasks.py
+│   ├── test_projects_tasks.py
+│   └── test_activity_logs.py
 ├── database/
 │   └── schema.sql       # Esquema SQL (ejecutable en DBeaver)
 ├── .env                 # Configuración local (NO versionado)
-├── requirements.txt     # Dependencias fijadas
+├── requirements.txt     # Dependencias Python fijadas
 └── pytest.ini           # Configuración de pytest
 ```
 
@@ -280,7 +325,9 @@ proyectoAPI/
 
 ## 🗺 Roadmap
 
-- [x] Fase 1: PostgreSQL en Docker + esquema SQL
+- [x] Fase 1: PostgreSQL en Docker + esquema SQL + DBeaver
 - [x] Fase 2: API REST con FastAPI (CRUD completo)
-- [x] Fase 3: Tests con pytest + documentación
-- [ ] Fase 4: MongoDB (logs de actividad NoSQL) + frontend HTML5/CSS3/TypeScript
+- [x] Fase 3: Tests con pytest + documentación + Git
+- [x] Fase 4: MongoDB (logs de auditoría) + frontend HTML5/CSS3/TypeScript
+
+**Posibles mejoras futuras**: autenticación con JWT, rate limiting, CI/CD, despliegue en la nube.
